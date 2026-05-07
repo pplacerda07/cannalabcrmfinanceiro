@@ -1,0 +1,257 @@
+================================================================
+GUIA COMPLETO DE CONFIGURACAO DAS APIS - CannaLab CRM
+================================================================
+Cada secao tem o passo a passo para voce copiar, executar e ser feliz.
+No final de cada secao tem o que colocar no arquivo .env
+
+
+================================================================
+1. BANCO DE DADOS - SUPABASE (PostgreSQL)
+================================================================
+
+PASSO 1: Criar conta
+  - Acesse: https://supabase.com
+  - Clique em "Start your project"
+  - Crie conta com GitHub ou email
+
+PASSO 2: Criar projeto
+  - Clique em "New project"
+  - Escolha um nome: cannalab-crm
+  - Defina uma senha forte para o banco (SALVE ESSA SENHA!)
+  - Escolha regiao: South America (Sao Paulo)
+  - Clique em "Create new project"
+  - Aguarde ~2 minutos ate o projeto ficar pronto
+
+PASSO 3: Pegar a connection string
+  - No menu lateral esquerdo clique em "Project Settings" (icone de engrenagem)
+  - Clique em "Database"
+  - Role ate "Connection string"
+  - Selecione "URI" (nao o pooler por enquanto)
+  - Copie a string que parece com:
+    postgresql://postgres:[SUA-SENHA]@db.xxxxxxxxxxxx.supabase.co:5432/postgres
+
+PASSO 4: Criar bucket para documentos
+  - No menu lateral clique em "Storage"
+  - Clique em "New bucket"
+  - Nome: documentos
+  - Desmarque "Public bucket" (manter privado!)
+  - Clique em "Create bucket"
+
+PASSO 5: Pegar as chaves do Supabase
+  - Va em "Project Settings" > "API"
+  - Copie:
+    - Project URL (ex: https://xxxxxxxxxxxx.supabase.co)
+    - anon public key
+    - service_role key (NUNCA exponha essa no frontend!)
+
+O QUE COLOCAR NO .env:
+  DATABASE_URL="postgresql://postgres:[SENHA]@db.xxxxxxxxxxxx.supabase.co:5432/postgres"
+  NEXT_PUBLIC_SUPABASE_URL="https://xxxxxxxxxxxx.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJ..."
+  SUPABASE_SERVICE_ROLE_KEY="eyJ..."
+  SUPABASE_STORAGE_BUCKET="documentos"
+
+
+================================================================
+2. ASAAS (Pagamentos)
+================================================================
+
+PASSO 1: Criar conta sandbox (para testar)
+  - Acesse: https://sandbox.asaas.com
+  - Clique em "Criar conta gratuita"
+  - Preencha os dados (pode usar dados ficticios no sandbox)
+  - Confirme o email
+  - Faca login
+
+PASSO 2: Pegar a API Key do sandbox
+  - No menu superior direito clique no seu nome > "Minha conta"
+  - Va em "Integracoes" > "API"
+  - Clique em "Gerar nova chave"
+  - Copie a chave que começa com $aact_...
+
+PASSO 3: Configurar o webhook no Asaas
+  - Ainda em "Integracoes" va em "Webhooks"
+  - Clique em "Adicionar webhook"
+  - URL: https://SEU-DOMINIO/api/asaas/webhook
+    (Durante desenvolvimento, use ngrok: veja secao NGROK abaixo)
+  - Marque os eventos:
+    [x] PAYMENT_CONFIRMED
+    [x] PAYMENT_RECEIVED
+    [x] PAYMENT_OVERDUE
+  - Defina um token secreto (pode ser qualquer string, ex: cannalab-webhook-2026)
+  - Salve
+
+PASSO 4: Para producao
+  - Acesse: https://www.asaas.com (sem sandbox)
+  - Repita os passos 1-3 com dados reais
+
+O QUE COLOCAR NO .env:
+  ASAAS_API_KEY="$aact_xxxx..."
+  ASAAS_BASE_URL="https://sandbox.asaas.com/api/v3"
+  ASAAS_WEBHOOK_TOKEN="cannalab-webhook-2026"
+
+  (Para producao trocar ASAAS_BASE_URL para: https://api.asaas.com/v3)
+
+
+================================================================
+3. GOOGLE CALENDAR + MEET
+================================================================
+
+PASSO 1: Criar projeto no Google Cloud Console
+  - Acesse: https://console.cloud.google.com
+  - Clique no seletor de projetos (topo da pagina) > "Novo projeto"
+  - Nome: cannalab-crm
+  - Clique em "Criar"
+  - Aguarde e selecione o projeto criado
+
+PASSO 2: Ativar as APIs necessarias
+  - No menu lateral va em "APIs e servicos" > "Biblioteca"
+  - Busque "Google Calendar API" e clique em "Ativar"
+  - Busque "Google Meet API" e clique em "Ativar" (opcional, o Meet ja funciona pelo Calendar)
+
+PASSO 3: Configurar a tela de consentimento OAuth
+  - Va em "APIs e servicos" > "Tela de permissao OAuth"
+  - Selecione "Externo" > "Criar"
+  - Preencha:
+    - Nome do app: CannaLab CRM
+    - Email de suporte: seu email
+    - Email do desenvolvedor: seu email
+  - Clique em "Salvar e continuar" ate o fim
+  - Na aba "Usuarios de teste" adicione o email da conta Google da CannaLab
+  - Clique em "Salvar e continuar"
+
+PASSO 4: Criar credenciais OAuth
+  - Va em "APIs e servicos" > "Credenciais"
+  - Clique em "+ Criar credenciais" > "ID do cliente OAuth"
+  - Tipo de aplicativo: "Aplicativo da Web"
+  - Nome: cannalab-crm-web
+  - Em "URIs de redirecionamento autorizados" clique em "+ Adicionar URI":
+    http://localhost:3000/api/google/oauth/callback
+    (em producao adicionar tambem: https://SEU-DOMINIO/api/google/oauth/callback)
+  - Clique em "Criar"
+  - Copie o "ID do cliente" e o "Chave secreta do cliente"
+
+PASSO 5: Obter o Refresh Token da conta central da CannaLab
+  - Coloque o CLIENT_ID e CLIENT_SECRET no .env
+  - Coloque GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/oauth/callback
+  - Rode o projeto localmente: npm run dev
+  - Acesse: http://localhost:3000/api/google/oauth/start
+  - Faca login com a conta Google da CannaLab (a conta que vai ter os eventos)
+  - Autorize o acesso ao Google Calendar
+  - Voce sera redirecionado para /api/google/oauth/callback
+  - A pagina vai mostrar um JSON com "refresh_token"
+  - COPIE O REFRESH_TOKEN (ele so aparece uma vez!)
+  - Salve no .env como GOOGLE_REFRESH_TOKEN
+
+PASSO 6: Pegar o Calendar ID
+  - Acesse: https://calendar.google.com com a conta da CannaLab
+  - No menu lateral em "Outros calendarios" encontre o calendario que quer usar
+  - Clique nos 3 pontos > "Configuracoes e compartilhamento"
+  - Role ate "Integracao de agenda"
+  - Copie o "ID da agenda" (parece com um email ou "primary")
+
+O QUE COLOCAR NO .env:
+  GOOGLE_CLIENT_ID="1234567890-xxxx.apps.googleusercontent.com"
+  GOOGLE_CLIENT_SECRET="GOCSPX-xxxxxxxxxx"
+  GOOGLE_REDIRECT_URI="http://localhost:3000/api/google/oauth/callback"
+  GOOGLE_CALENDAR_ID="primary"
+  GOOGLE_REFRESH_TOKEN="1//xxxxxxxxxxxxxxxxx"
+
+
+================================================================
+4. NGROK (para testar webhooks localmente)
+================================================================
+
+O Asaas precisa de uma URL publica para enviar webhooks.
+Durante o desenvolvimento use o ngrok para criar um tunel.
+
+PASSO 1: Instalar ngrok
+  - Acesse: https://ngrok.com
+  - Crie uma conta gratuita
+  - Baixe e instale o ngrok
+  - Configure o token: ngrok config add-authtoken SEU_TOKEN
+
+PASSO 2: Rodar o tunel
+  - Com o projeto rodando em localhost:3000 execute:
+    ngrok http 3000
+  - O ngrok vai mostrar uma URL publica tipo:
+    https://abcd-123-456-789.ngrok-free.app
+
+PASSO 3: Atualizar o webhook no Asaas
+  - Va no painel do Asaas > Integracoes > Webhooks
+  - Edite o webhook que criou
+  - Troque a URL para:
+    https://abcd-123-456-789.ngrok-free.app/api/asaas/webhook
+  - Salve
+
+OBS: A URL do ngrok muda toda vez que voce reinicia. Sempre atualize no Asaas.
+
+
+================================================================
+5. RODAR O PROJETO PELA PRIMEIRA VEZ
+================================================================
+
+PASSO 1: Copiar o .env.example
+  cp .env.example .env
+  (ou copie manualmente o arquivo e renomeie para .env)
+
+PASSO 2: Preencher todas as variaveis do .env
+  (siga os passos acima para cada API)
+
+PASSO 3: Instalar dependencias
+  npm install
+
+PASSO 4: Aplicar o schema no banco
+  npx prisma migrate dev --name init
+
+PASSO 5: Popular o banco com dados iniciais (usuario admin + templates)
+  npx tsx prisma/seed.ts
+
+PASSO 6: Rodar o projeto
+  npm run dev
+
+PASSO 7: Acessar o CRM
+  http://localhost:3000/login
+  Email: admin@cannalab.com
+  Senha: cannalab123
+
+
+================================================================
+6. DEPLOY NA VERCEL
+================================================================
+
+PASSO 1: Instalar o CLI da Vercel
+  npm i -g vercel
+
+PASSO 2: Fazer login
+  vercel login
+
+PASSO 3: Criar o projeto na Vercel
+  vercel
+  (responda as perguntas: projeto novo, pasta raiz, etc)
+
+PASSO 4: Configurar as variaveis de ambiente na Vercel
+  - Acesse: https://vercel.com > seu projeto > Settings > Environment Variables
+  - Adicione todas as variaveis do .env
+
+PASSO 5: Atualizar as URLs de callback
+  - No Google Cloud Console, adicione a URL de producao nos URIs autorizados:
+    https://SEU-DOMINIO.vercel.app/api/google/oauth/callback
+  - No Asaas, atualize o webhook para:
+    https://SEU-DOMINIO.vercel.app/api/asaas/webhook
+
+PASSO 6: Aplicar as migrations em producao
+  DATABASE_URL="sua-url-de-producao" npx prisma migrate deploy
+
+PASSO 7: Rodar o seed em producao (so uma vez)
+  DATABASE_URL="sua-url-de-producao" npx tsx prisma/seed.ts
+
+PASSO 8: Fazer o deploy
+  vercel --prod
+
+
+================================================================
+FIM DO GUIA
+================================================================
+Qualquer duvida, cole o erro no chat e a gente resolve!
+================================================================
