@@ -29,9 +29,10 @@ const statusSchema = z.object({
   userId: z.string(),
 });
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const patient = await prisma.patient.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       assignedTo: true,
       appointments: { orderBy: { startsAt: "desc" } },
@@ -45,7 +46,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(patient);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const body = await req.json();
 
   if (body.status) {
@@ -53,11 +55,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
     const patient = await prisma.patient.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: parsed.data.status },
     });
 
-    await logActivity(params.id, parsed.data.userId, `Status alterado para ${parsed.data.status}`);
+    await logActivity(id, parsed.data.userId, `Status alterado para ${parsed.data.status}`);
     return NextResponse.json(patient);
   }
 
@@ -65,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const patient = await prisma.patient.update({
-    where: { id: params.id },
+    where: { id },
     data: parsed.data,
   });
 

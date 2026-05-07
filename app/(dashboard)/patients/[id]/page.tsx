@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 
-export default async function PatientDetailPage({ params }: { params: { id: string } }) {
+export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const patient = await prisma.patient.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       assignedTo: true,
       appointments: { orderBy: { startsAt: "desc" } },
