@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { PatientStatus } from "@/app/generated/prisma/client";
 
+export const dynamic = "force-dynamic";
+
 async function getStats() {
   const [total, pagamentoEnviado, pago, agendada, realizada] = await Promise.all([
     prisma.patient.count({ where: { status: PatientStatus.NOVO_LEAD } }),

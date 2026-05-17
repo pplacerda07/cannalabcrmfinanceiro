@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { PatientStatus } from "@/app/generated/prisma/client";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_LABELS: Record<PatientStatus, string> = {
   NOVO_LEAD: "Novo Lead",
   EM_ATENDIMENTO: "Em Atendimento",
